@@ -80,12 +80,12 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 
 	edit_html_form = "" if len(sn_set) == 0 else f"""
 	<form action="/editnode">
-	<strong>Edit Node</strong><br>
-	<label for="new_id">New Id:</label>
-	<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sn_set)[0]}"><br>
-	<input type="hidden" name="id" value="{list(sn_set)[0]}">
-	<input type="hidden" name="infile" value="{infile}" />
-	<input type="submit" value="Submit">
+		<strong>Edit Node</strong><br>
+		<label for="new_id">New Id:</label>
+		<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sn_set)[0]}"><br>
+		<input type="hidden" name="id" value="{list(sn_set)[0]}">
+		<input type="hidden" name="infile" value="{infile}" />
+		<input type="submit" value="Submit">
 	</form>
 	"""
 
