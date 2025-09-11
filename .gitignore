@@ -1,0 +1,5 @@
+*.dot
+*.svg
+*.png
+*.cmapx
+**/__pycache__

@@ -1,0 +1,7 @@
+pydantic
+fastapi[standard]
+uvicorn
+pydot
+networkx
+
+pytest
