@@ -5,3 +5,4 @@ pydot
 networkx
 
 pytest
+ipython

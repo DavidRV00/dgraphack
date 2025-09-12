@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+from contextlib import contextmanager
 from functools import partial
 from typing import Annotated
 
@@ -10,7 +11,6 @@ from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
-
 
 # TODO:
 # - Clean and refactor
@@ -37,37 +37,46 @@ print = partial(print, flush=True)
 
 
 def print_dot(graph):
-    nx.nx_pydot.write_dot(graph, "/dev/tty")
+	nx.nx_pydot.write_dot(graph, "/dev/tty")
 
 
 def print_json(json_data):
-    print(json.dumps(json_data, indent=4))
+	print(json.dumps(json_data, indent=4))
+
+
+@contextmanager
+def mutate_dot_as_json(infile: str, write_output: bool = True):
+	dot_graph_in = nx.nx_pydot.read_dot(infile)
+	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
+	try:
+		yield json_data
+	finally:
+		if not write_output:
+			return
+		# TODO: Can we output it with proper indentation?
+		graph_out = json_graph.node_link_graph(json_data, edges="edges")
+		nx.nx_pydot.write_dot(graph_out, infile)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
+	with mutate_dot_as_json(infile, write_output=False) as json_data:
+		sn_set = set(sn if sn is not None else [])
+		selected_nodes_args = "".join([f"&sn={id}" for id in sn_set])
 
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-	sn_set = set(sn if sn is not None else [])
-	selected_nodes_args = "".join([f"&sn={id}" for id in sn_set])
+		for n in json_data["nodes"]:
+			n["URL"] = f"{API_URL}/selectnode?infile={infile}{selected_nodes_args}&id={n["id"]}"
+			if n["id"] in sn_set:
+				n["color"] = "red"
+		for e in json_data["edges"]:
+			e["URL"] = f"{API_URL}/selectedge?infile={infile}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
 
-	for n in json_data["nodes"]:
-		n["URL"] = f"{API_URL}/selectnode?infile={infile}{selected_nodes_args}&id={n["id"]}"
-		if n["id"] in sn_set:
-			n["color"] = "red"
-	for e in json_data["edges"]:
-		e["URL"] = f"{API_URL}/selectedge?infile={infile}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
-
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	# TODO: Can we output it with proper indentation?
-	nx.nx_pydot.write_dot(graph_out, "graphout.dot")
-
-	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
-	pydot_graph.write_svg("graphout.svg")
-	pydot_graph.write_cmapx("graphout.cmapx")
-	with open("graphout.cmapx", 'r') as file:
-		cmapx_content = file.read()
+		graph_out = json_graph.node_link_graph(json_data, edges="edges")
+		pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+		pydot_graph.write_svg("graphout.svg")
+		pydot_graph.write_cmapx("graphout.cmapx")
+		with open("graphout.cmapx", 'r') as file:
+			cmapx_content = file.read()
 
 	delete_html_form = "" if len(sn_set) == 0 else f"""
 	<form action="/deletenode">
@@ -121,19 +130,15 @@ async def select_node(infile: str, id: str, sn: Annotated[list[str] | None, Quer
 	elif len(sn_set) == 0:
 		sn_set.add(id)
 	else:
-		dot_graph_in = nx.nx_pydot.read_dot(infile)
-		json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-		json_data["edges"] = [
-			dict([(k,v) for k,v in e.items() if k != "key"])
-			for e in json_data["edges"]
-		]
-		json_data["edges"].append({
-			"source": list(sn_set)[0],
-			"target": id,
-		})
-
-		graph_out = json_graph.node_link_graph(json_data, edges="edges")
-		nx.nx_pydot.write_dot(graph_out, infile)
+		with mutate_dot_as_json(infile) as json_data:
+			json_data["edges"] = [
+				dict([(k,v) for k,v in e.items() if k != "key"])
+				for e in json_data["edges"]
+			]
+			json_data["edges"].append({
+				"source": list(sn_set)[0],
+				"target": id,
+			})
 		sn_set.clear()
 
 	selected_nodes_args = "".join([f"&sn={id}" for id in sn_set])
@@ -142,66 +147,48 @@ async def select_node(infile: str, id: str, sn: Annotated[list[str] | None, Quer
 
 @app.get("/selectedge/")
 async def select_edge(infile: str, source: str, target: str):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-	json_data["edges"] = [
-		e for e in json_data["edges"]
-		if not (e["source"] == source and e["target"] == target)
-	]
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	nx.nx_pydot.write_dot(graph_out, infile)
+	with mutate_dot_as_json(infile) as json_data:
+		json_data["edges"] = [
+			e for e in json_data["edges"]
+			if not (e["source"] == source and e["target"] == target)
+		]
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
 @app.get("/addnode/")
 async def add_node(infile: str, id: str):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-
-	json_data["nodes"].append({
-		"id": id,
-	})
-
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	nx.nx_pydot.write_dot(graph_out, infile)
+	with mutate_dot_as_json(infile) as json_data:
+		json_data["nodes"].append({
+			"id": id,
+		})
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
 @app.get("/deletenode/")
 async def delete_node(infile: str, id: str):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-
-	json_data["nodes"] = [
-		n for n in json_data["nodes"]
-		if n["id"] != id
-	]
-	json_data["edges"] = [
-		e for e in json_data["edges"]
-		if id not in [e["source"], e["target"]]
-	]
-
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	nx.nx_pydot.write_dot(graph_out, infile)
+	with mutate_dot_as_json(infile) as json_data:
+		json_data["nodes"] = [
+			n for n in json_data["nodes"]
+			if n["id"] != id
+		]
+		json_data["edges"] = [
+			e for e in json_data["edges"]
+			if id not in [e["source"], e["target"]]
+		]
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
 @app.get("/editnode/")
 async def edit_node(infile: str, id: str, new_id: str):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-
-	for n in json_data["nodes"]:
-		if n["id"] == id:
-			n["id"] = new_id
-	for e in json_data["edges"]:
-		if e["source"] == id:
-			e["source"] = new_id
-		if e["target"] == id:
-			e["target"] = new_id
-
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	nx.nx_pydot.write_dot(graph_out, infile)
+	with mutate_dot_as_json(infile) as json_data:
+		for n in json_data["nodes"]:
+			if n["id"] == id:
+				n["id"] = new_id
+		for e in json_data["edges"]:
+			if e["source"] == id:
+				e["source"] = new_id
+			if e["target"] == id:
+				e["target"] = new_id
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
