@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 # TODO:
+# - Better HTTP methods for all endpoints
 # - Good UX for opening + using:
 #   - Demonstrate easy opening from vim
 #   - Sync to reasonably-named image like I do with my vim autocmd
@@ -201,8 +202,10 @@ async def edit_node(
 	with mutate_dot_as_json(infile) as json_data:
 		for n in json_data["nodes"]:
 			if n["id"] == id:
-				n["id"] = new_id
+				n.clear()
 				n.update(editnodedata_json)
+				n["id"] = new_id
+				break
 		for e in json_data["edges"]:
 			if e["source"] == id:
 				e["source"] = new_id
