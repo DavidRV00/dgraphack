@@ -7,13 +7,12 @@ from typing import Annotated
 
 import networkx as nx
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 # TODO:
-# - Edit everything else about a node
 # - Good UX for opening + using:
 #   - Demonstrate easy opening from vim
 #   - Sync to reasonably-named image like I do with my vim autocmd
@@ -21,6 +20,9 @@ from networkx.readwrite import json_graph
 # - Better output indentation
 # - Host a demo
 # - Put it out there
+# - Edit edges
+# - Edit nodes and edges in normal DOT format instead of json
+# - Allow preserving URL and color attributes
 
 
 API_PORT = 8123
@@ -28,6 +30,7 @@ API_URL = f"http://localhost:{API_PORT}"
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
+
 
 app = FastAPI()
 app.mount("/imgs", StaticFiles(directory="./"))
@@ -58,14 +61,14 @@ def mutate_dot_as_json(infile: str, write_output: bool = True):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
+async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = None):
 	with mutate_dot_as_json(infile, write_output=False) as json_data:
-		sn_set = set(sn if sn is not None else [])
-		selected_nodes_args = "".join([f"&sn={id}" for id in sn_set])
+		sel_node_set = set(sel_node if sel_node is not None else [])
+		selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
 
 		for n in json_data["nodes"]:
 			n["URL"] = f"{API_URL}/selectnode?infile={infile}{selected_nodes_args}&id={n["id"]}"
-			if n["id"] in sn_set:
+			if n["id"] in sel_node_set:
 				n["color"] = "red"
 		for e in json_data["edges"]:
 			e["URL"] = f"{API_URL}/selectedge?infile={infile}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
@@ -77,27 +80,35 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 		with open("graphout.cmapx", 'r') as file:
 			cmapx_content = file.read()
 
-	delete_html_form = "" if len(sn_set) == 0 else f"""
+	delete_html_form = "" if len(sel_node_set) == 0 else f"""
 	<form action="/deletenode">
-		<strong>Delete Node</strong>
-		<input type="hidden" name="id" value="{list(sn_set)[0]}">
+		<strong>Delete Node</strong><br>
+		<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
 		<input type="hidden" name="infile" value="{infile}" />
 		<input type="submit" value="Submit">
 	</form>
 	"""
 
-	edit_html_form = "" if len(sn_set) == 0 else f"""
-	<form action="/editnode">
-		<strong>Edit Node</strong><br>
-		<label for="new_id">New Id:</label>
-		<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sn_set)[0]}"><br>
-		<input type="hidden" name="id" value="{list(sn_set)[0]}">
-		<input type="hidden" name="infile" value="{infile}" />
-		<input type="submit" value="Submit">
-	</form>
-	"""
+	edit_html_form = ""
+	if len(sel_node_set) != 0:
+		node_data = [n for n in json_data["nodes"] if n["id"] == list(sel_node_set)[0]][0]
+		node_data_pruned_json = json.dumps(
+			{k:v for k,v in node_data.items() if k not in ["id", "URL", "color"]},
+			indent=4
+		)
+		edit_html_form = f"""
+		<form action="/editnode" method="post" id="editnodeform">
+			<strong>Edit Node</strong><br>
+			<label for="editnodedata">Node Data (json):</label><br>
+			<textarea name="editnodedata" cols="25" rows="3" form="editnodeform">{node_data_pruned_json}</textarea><br>
+			<label for="new_id">New Id:</label>
+			<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
+			<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
+			<input type="hidden" name="infile" value="{infile}"/>
+			<input type="submit" value="Submit">
+		</form>
+		"""
 
-	# TODO: action="..." method="post"
 	return f"""
 	<html>
 		<body>
@@ -105,7 +116,7 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 				<img src="imgs/graphout.svg" usemap="#G" alt="graph" />
 				{cmapx_content}
 			</div>
-			<div style="float: right; width: 15%">
+			<div style="float: right; width: 22%">
 				<form action="/addnode">
 					<strong>Add Node</strong><br>
 					<label for="id">Id:</label>
@@ -121,15 +132,14 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 	"""
 
 
-# TODO: Post
 @app.get("/selectnode/")
-async def select_node(infile: str, id: str, sn: Annotated[list[str] | None, Query()] = None):
-	sn_set = set(sn if sn is not None else [])
+async def select_node(infile: str, id: str, sel_node: Annotated[list[str] | None, Query()] = None):
+	sel_node_set = set(sel_node if sel_node is not None else [])
 
-	if id in sn_set:
-		sn_set.remove(id)
-	elif len(sn_set) == 0:
-		sn_set.add(id)
+	if id in sel_node_set:
+		sel_node_set.remove(id)
+	elif len(sel_node_set) == 0:
+		sel_node_set.add(id)
 	else:
 		with mutate_dot_as_json(infile) as json_data:
 			json_data["edges"] = [
@@ -137,12 +147,12 @@ async def select_node(infile: str, id: str, sn: Annotated[list[str] | None, Quer
 				for e in json_data["edges"]
 			]
 			json_data["edges"].append({
-				"source": list(sn_set)[0],
+				"source": list(sel_node_set)[0],
 				"target": id,
 			})
-		sn_set.clear()
+		sel_node_set.clear()
 
-	selected_nodes_args = "".join([f"&sn={id}" for id in sn_set])
+	selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
 	return RedirectResponse(f"{API_URL}/?infile={infile}{selected_nodes_args}")
 
 
@@ -179,18 +189,26 @@ async def delete_node(infile: str, id: str):
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
-@app.get("/editnode/")
-async def edit_node(infile: str, id: str, new_id: str):
+@app.post("/editnode/")
+async def edit_node(
+	infile: Annotated[str, Form()],
+	id: Annotated[str, Form()],
+	new_id: Annotated[str, Form()],
+	editnodedata: Annotated[str, Form()],
+):
+	editnodedata_json = json.loads(editnodedata)
+	print(f"EDITNODEDATA: {editnodedata_json}")
 	with mutate_dot_as_json(infile) as json_data:
 		for n in json_data["nodes"]:
 			if n["id"] == id:
 				n["id"] = new_id
+				n.update(editnodedata_json)
 		for e in json_data["edges"]:
 			if e["source"] == id:
 				e["source"] = new_id
 			if e["target"] == id:
 				e["target"] = new_id
-	return RedirectResponse(f"{API_URL}/?infile={infile}")
+	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
 
 
 if __name__ == "__main__":
