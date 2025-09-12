@@ -102,7 +102,7 @@ async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = Non
 			<strong>Edit Node</strong><br>
 			<label for="editnodedata">Node Data (json):</label><br>
 			<textarea name="editnodedata" cols="25" rows="3" form="editnodeform">{node_data_pruned_json}</textarea><br>
-			<label for="new_id">New Id:</label>
+			<label for="new_id">Id:</label>
 			<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
 			<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
 			<input type="hidden" name="infile" value="{infile}"/>
