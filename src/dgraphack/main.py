@@ -13,7 +13,6 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 # TODO:
-# - Clean and refactor
 # - Edit everything else about a node
 # - Good UX for opening + using:
 #   - Demonstrate easy opening from vim
@@ -98,6 +97,7 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 	</form>
 	"""
 
+	# TODO: action="..." method="post"
 	return f"""
 	<html>
 		<body>
@@ -121,6 +121,7 @@ async def root(infile: str, sn: Annotated[list[str] | None, Query()] = None):
 	"""
 
 
+# TODO: Post
 @app.get("/selectnode/")
 async def select_node(infile: str, id: str, sn: Annotated[list[str] | None, Query()] = None):
 	sn_set = set(sn if sn is not None else [])
