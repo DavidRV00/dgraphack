@@ -13,17 +13,17 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 # TODO:
-# - Better HTTP methods for all endpoints
 # - Good UX for opening + using:
 #   - Demonstrate easy opening from vim
 #   - Sync to reasonably-named image like I do with my vim autocmd
 #   - Allow hidden server-running, or running server beforehand
-# - Better output indentation
 # - Host a demo
 # - Put it out there
+# ---------------------------
 # - Edit edges
 # - Edit nodes and edges in normal DOT format instead of json
 # - Allow preserving URL and color attributes
+# - Better output indentation
 
 
 API_PORT = 8123
@@ -62,7 +62,10 @@ def mutate_dot_as_json(infile: str, write_output: bool = True):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = None):
+async def root(
+	infile: str,
+	sel_node: Annotated[list[str] | None, Query()] = None,
+):
 	with mutate_dot_as_json(infile, write_output=False) as json_data:
 		sel_node_set = set(sel_node if sel_node is not None else [])
 		selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
@@ -82,7 +85,7 @@ async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = Non
 			cmapx_content = file.read()
 
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
-	<form action="/deletenode">
+	<form action="/deletenode" method="post">
 		<strong>Delete Node</strong><br>
 		<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
 		<input type="hidden" name="infile" value="{infile}" />
@@ -100,8 +103,8 @@ async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = Non
 		edit_html_form = f"""
 		<form action="/editnode" method="post" id="editnodeform">
 			<strong>Edit Node</strong><br>
-			<label for="editnodedata">Node Data (json):</label><br>
-			<textarea name="editnodedata" cols="25" rows="3" form="editnodeform">{node_data_pruned_json}</textarea><br>
+			<label for="edit_node_data">Node Data (json):</label><br>
+			<textarea name="edit_node_data" cols="25" rows="3" form="editnodeform">{node_data_pruned_json}</textarea><br>
 			<label for="new_id">Id:</label>
 			<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
 			<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
@@ -118,7 +121,7 @@ async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = Non
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
-				<form action="/addnode">
+				<form action="/addnode" method="post">
 					<strong>Add Node</strong><br>
 					<label for="id">Id:</label>
 					<input type="text" id="id" name="id" style="width: 75px" value=""><br>
@@ -134,7 +137,11 @@ async def root(infile: str, sel_node: Annotated[list[str] | None, Query()] = Non
 
 
 @app.get("/selectnode/")
-async def select_node(infile: str, id: str, sel_node: Annotated[list[str] | None, Query()] = None):
+async def select_node(
+	infile: str,
+	id: str,
+	sel_node: Annotated[list[str] | None, Query()] = None,
+):
 	sel_node_set = set(sel_node if sel_node is not None else [])
 
 	if id in sel_node_set:
@@ -158,7 +165,11 @@ async def select_node(infile: str, id: str, sel_node: Annotated[list[str] | None
 
 
 @app.get("/selectedge/")
-async def select_edge(infile: str, source: str, target: str):
+async def select_edge(
+	infile: str,
+	source: str,
+	target: str,
+):
 	with mutate_dot_as_json(infile) as json_data:
 		json_data["edges"] = [
 			e for e in json_data["edges"]
@@ -167,17 +178,23 @@ async def select_edge(infile: str, source: str, target: str):
 	return RedirectResponse(f"{API_URL}/?infile={infile}")
 
 
-@app.get("/addnode/")
-async def add_node(infile: str, id: str):
+@app.post("/addnode/")
+async def add_node(
+	infile: Annotated[str, Form()],
+	id: Annotated[str, Form()],
+):
 	with mutate_dot_as_json(infile) as json_data:
 		json_data["nodes"].append({
 			"id": id,
 		})
-	return RedirectResponse(f"{API_URL}/?infile={infile}")
+	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
 
 
-@app.get("/deletenode/")
-async def delete_node(infile: str, id: str):
+@app.post("/deletenode/")
+async def delete_node(
+	infile: Annotated[str, Form()],
+	id: Annotated[str, Form()],
+):
 	with mutate_dot_as_json(infile) as json_data:
 		json_data["nodes"] = [
 			n for n in json_data["nodes"]
@@ -187,7 +204,7 @@ async def delete_node(infile: str, id: str):
 			e for e in json_data["edges"]
 			if id not in [e["source"], e["target"]]
 		]
-	return RedirectResponse(f"{API_URL}/?infile={infile}")
+	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
 
 
 @app.post("/editnode/")
@@ -195,15 +212,14 @@ async def edit_node(
 	infile: Annotated[str, Form()],
 	id: Annotated[str, Form()],
 	new_id: Annotated[str, Form()],
-	editnodedata: Annotated[str, Form()],
+	edit_node_data: Annotated[str, Form()],
 ):
-	editnodedata_json = json.loads(editnodedata)
-	print(f"EDITNODEDATA: {editnodedata_json}")
+	edit_node_data_json = json.loads(edit_node_data)
 	with mutate_dot_as_json(infile) as json_data:
 		for n in json_data["nodes"]:
 			if n["id"] == id:
 				n.clear()
-				n.update(editnodedata_json)
+				n.update(edit_node_data_json)
 				n["id"] = new_id
 				break
 		for e in json_data["edges"]:
