@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 # TODO:
+# - Re-split-out the api and opener; don't hide the fact that it's a web app.
+# - Then, have the "opener" handle syncing the file locally
 # - Good UX for opening + using:
 #   - Demonstrate easy opening from vim
 #   - Sync to reasonably-named image like I do with my vim autocmd
