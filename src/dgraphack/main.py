@@ -18,27 +18,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
-# TODO:
-# - Re-split-out the api and opener; don't hide the fact that it's a web app.
-# - Then, have the "opener" handle syncing the file locally
-# - Good UX for opening + using:
-#   - Demonstrate easy opening from vim
-#   - Sync to reasonably-named image like I do with my vim autocmd
-#   - Allow hidden server-running, or running server beforehand
-#   - Figure out how to get and use executable in path
-#   - Figure out what to do about opening multiple files in different dirs
-#     (because rn the api is run in a dir)
-# - Host a demo
-# - Put it out there
-# ---------------------------
-# - Edit edges
-# - Edit nodes and edges in normal DOT format instead of json
-# - Allow preserving URL and color attributes
-# - Better output indentation
-
-# Note, opening from vim:
-# silent ! BROWSER=firefox python3 ./src/dgraphack/main.py --reload --file=% > /dev/null 2>&1 &
-
 
 API_PORT = 8123
 API_URL = f"http://localhost:{API_PORT}"
