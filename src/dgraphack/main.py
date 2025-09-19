@@ -234,42 +234,43 @@ def api_is_running(dot_file: str) -> bool:
 	return True
 
 
-def ensure_api_is_running(reload: bool, dot_file: str):
+def ensure_api_is_running(args):
 	# The api can be started seperately, beforehand.
-	if api_is_running(dot_file):
+	if api_is_running(args.file):
+		print(f"API is already running at {API_URL}.")
 		return
-	uvicorn.run("main:app", host="0.0.0.0", port=API_PORT, reload=reload)
+	uvicorn.run("main:app", host="0.0.0.0", port=API_PORT, reload=args.reload)
 
 
-def open_app_in_browser(dot_file: str):
+def open_app_in_browser(args):
 	# Poll the api to make sure it exists, before opening browser.
-	while not api_is_running(dot_file):
+	while not api_is_running(args.file):
 		time.sleep(0.1)
-	webbrowser.open(f"{API_URL}/?infile={dot_file}")
-
-
-async def _main(executor, args):
-	loop = asyncio.get_running_loop()
-	run = partial(loop.run_in_executor, executor)
-
-	api_fut = run(ensure_api_is_running, args.reload, args.file),
-
-	if not args.run_api_only:
-		open_app_in_browser(args.file)
-
-	for fut in api_fut:
-		await fut
+	webbrowser.open(f"{API_URL}/?infile={args.file}")
 
 
 if __name__ == "__main__":
 	import argparse
 	arg_parser = argparse.ArgumentParser(exit_on_error=True)
-	arg_parser.add_argument("--reload", action='store_true')
-	arg_parser.add_argument("--run-api-only", action='store_true')
-	arg_parser.add_argument("--file", "-f", type=str, required=True)
+	sub_parsers = arg_parser.add_subparsers(required=True)
+
+	parser_api = sub_parsers.add_parser(
+		'api',
+		help='run the API'
+	)
+	parser_api.add_argument("--reload", action='store_true')
+	parser_api.add_argument("--file", "-f", type=str, required=True)
+	parser_api.set_defaults(func=ensure_api_is_running)
+
+	parser_editor = sub_parsers.add_parser(
+		'editor',
+		help='connect to the API and run the editor in a browser',
+	)
+	parser_editor.add_argument("--file", "-f", type=str, required=True)
+	parser_editor.set_defaults(func=open_app_in_browser)
+
 	args = arg_parser.parse_args()
 
-	mp.set_start_method("spawn")
-	with cf.ProcessPoolExecutor(max_workers=2) as executor:
-		asyncio.run(_main(executor, args))
+	# Delegate execution to subcommand.
+	args.func(args)
 
