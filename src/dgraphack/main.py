@@ -245,13 +245,16 @@ def ensure_api_is_running(args) -> None:
 
 
 def launch_editor(args) -> None:
-	sessionid = uuid4()
-	session_path = os.path.join(API_WORK_DIR, str(sessionid))
-	if not os.path.exists(session_path):
-		os.makedirs(session_path)
-	infile_abspath = os.path.abspath(args.file)
-	os.symlink(infile_abspath, os.path.join(session_path, "filelink.dot"))
+	# Create a directory for our session, and link our local file there.
+	sessionid = str(uuid4())
+	session_path = os.path.join(API_WORK_DIR, sessionid)
+	os.makedirs(session_path)
+	os.symlink(
+		os.path.abspath(args.file),
+		os.path.join(session_path,"filelink.dot"),
+	)
 
+	# Launch a web browser ($BROWSER or --browser) to our session in the API.
 	session_url = f"{API_URL}/?sessionid={sessionid}"
 	if args.browser is None:
 		webbrowser.open(session_url)
