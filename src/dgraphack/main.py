@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-import asyncio
-import concurrent.futures as cf
 import json
-import multiprocessing as mp
 import time
 import webbrowser
 from contextlib import contextmanager
@@ -17,7 +14,6 @@ from fastapi import FastAPI, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
-
 
 API_PORT = 8123
 API_URL = f"http://localhost:{API_PORT}"
