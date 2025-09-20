@@ -231,7 +231,6 @@ def api_is_running(dot_file: str) -> bool:
 
 
 def ensure_api_is_running(args):
-	# The api can be started seperately, beforehand.
 	if api_is_running(args.file):
 		print(f"API is already running at {API_URL}.")
 		return
