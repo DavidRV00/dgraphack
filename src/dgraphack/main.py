@@ -275,8 +275,8 @@ if __name__ == "__main__":
 		'edit',
 		help='connect to the API and run the editor in a browser',
 	)
-	parser_edit.add_argument("--file", "-f", type=str, required=True)
 	parser_edit.add_argument("--browser", "-b", type=str, required=False)
+	parser_edit.add_argument("file", type=str)
 	parser_edit.set_defaults(func=launch_editor)
 
 	args = arg_parser.parse_args()
