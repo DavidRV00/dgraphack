@@ -2,7 +2,7 @@
 
 import json
 import os
-import uuid
+import tempfile
 import webbrowser
 from contextlib import contextmanager
 from functools import partial
@@ -19,8 +19,8 @@ from networkx.readwrite import json_graph
 
 API_PORT = 8123
 API_URL = f"http://localhost:{API_PORT}"
-API_WORK_DIR = "/tmp/dgraphack"
-API_IMG_DIR = f"{API_WORK_DIR}/imgs"
+API_WORK_DIR = os.path.join(tempfile.gettempdir(), "dgraphack")
+API_IMG_DIR = os.path.join(API_WORK_DIR, "imgs")
 
 for path in [API_WORK_DIR, API_IMG_DIR]:
 	if not os.path.exists(path):
@@ -35,17 +35,9 @@ app.mount("/imgs", StaticFiles(directory=API_IMG_DIR))
 print = partial(print, flush=True)
 
 
-def print_dot(graph) -> None:
-	nx.nx_pydot.write_dot(graph, "/dev/tty")
-
-
-def print_json(json_data) -> None:
-	print(json.dumps(json_data, indent=4))
-
-
 @contextmanager
 def mutate_dot_as_json(sessionid: str, write_output: bool = True):
-	workspace_file_path = f"{API_WORK_DIR}/{sessionid}/filelink.dot"
+	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
 	dot_graph_in = nx.nx_pydot.read_dot(workspace_file_path)
 	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
 	try:
@@ -80,10 +72,12 @@ async def root(
 		graph_out = json_graph.node_link_graph(json_data, edges="edges")
 		pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
 
-		session_path = f"{API_WORK_DIR}/{sessionid}"
-		pydot_graph.write_svg(f"{API_WORK_DIR}/imgs/{sessionid}.svg")
-		pydot_graph.write_cmapx(f"{session_path}/graphout.cmapx")
-		with open(f"{session_path}/graphout.cmapx", 'r') as file:
+		session_path = os.path.join(API_WORK_DIR, sessionid)
+		pydot_graph.write_svg(os.path.join(API_WORK_DIR, "imgs", f"{sessionid}.svg"))
+
+		cmapx_path = os.path.join(session_path, "graphout.cmapx")
+		pydot_graph.write_cmapx(cmapx_path)
+		with open(cmapx_path, 'r') as file:
 			cmapx_content = file.read()
 
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
@@ -252,11 +246,11 @@ def ensure_api_is_running(args) -> None:
 
 def launch_editor(args) -> None:
 	sessionid = uuid4()
-	session_path = f"{API_WORK_DIR}/{sessionid}"
+	session_path = os.path.join(API_WORK_DIR, str(sessionid))
 	if not os.path.exists(session_path):
 		os.makedirs(session_path)
 	infile_abspath = os.path.abspath(args.file)
-	os.symlink(infile_abspath, f"{session_path}/filelink.dot")
+	os.symlink(infile_abspath, os.path.join(session_path, "filelink.dot"))
 
 	session_url = f"{API_URL}/?sessionid={sessionid}"
 	if args.browser is None:
