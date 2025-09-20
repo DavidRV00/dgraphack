@@ -46,6 +46,7 @@ def mutate_dot_as_json(sessionid: str, write_output: bool = True):
 		if not write_output:
 			return
 		# TODO: Can we output it with proper indentation?
+		# TODO: Should we always be writing back out here?
 		graph_out = json_graph.node_link_graph(json_data, edges="edges")
 		nx.nx_pydot.write_dot(graph_out, workspace_file_path)
 
