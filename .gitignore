@@ -3,3 +3,5 @@
 *.png
 *.cmapx
 **/__pycache__
+build/
+*.egg-info/

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dgraphack"
+version = "0.0.1"
+dependencies = [
+	"fastapi[standard]",
+	"uvicorn",
+	"pydot",
+	"networkx",
+]
+
+authors = [
+	{name = "David Vaughan", email = "david@davidv.xyz"},
+]
+
+[tool.optional-dependencies]
+dev = []
+
+# Note:
+# Make sure to use strict mode with editable installs so that pyright can find these packages:
+# https://setuptools.pypa.io/en/latest/userguide/development_mode.html#strict-editable-installs
+#
+# strict mode also works as a workaround for https://github.com/pypa/setuptools/issues/4248 .
+[tool.setuptools.package-dir]
+"dgraphack" = "src/dgraphack"
+
