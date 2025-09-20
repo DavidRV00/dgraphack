@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import json
-import time
+import os
+import uuid
 import webbrowser
 from contextlib import contextmanager
 from functools import partial
 from typing import Annotated
 from urllib import request
+from uuid import uuid4
 
 import networkx as nx
 import uvicorn
@@ -17,28 +19,34 @@ from networkx.readwrite import json_graph
 
 API_PORT = 8123
 API_URL = f"http://localhost:{API_PORT}"
+API_WORK_DIR = "/tmp/dgraphack"
+API_IMG_DIR = f"{API_WORK_DIR}/imgs"
+
+for path in [API_WORK_DIR, API_IMG_DIR]:
+	if not os.path.exists(path):
+		os.makedirs(path)
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
 
-
 app = FastAPI()
-app.mount("/imgs", StaticFiles(directory="./"))
+app.mount("/imgs", StaticFiles(directory=API_IMG_DIR))
 
 print = partial(print, flush=True)
 
 
-def print_dot(graph):
+def print_dot(graph) -> None:
 	nx.nx_pydot.write_dot(graph, "/dev/tty")
 
 
-def print_json(json_data):
+def print_json(json_data) -> None:
 	print(json.dumps(json_data, indent=4))
 
 
 @contextmanager
-def mutate_dot_as_json(infile: str, write_output: bool = True):
-	dot_graph_in = nx.nx_pydot.read_dot(infile)
+def mutate_dot_as_json(sessionid: str, write_output: bool = True):
+	workspace_file_path = f"{API_WORK_DIR}/{sessionid}/filelink.dot"
+	dot_graph_in = nx.nx_pydot.read_dot(workspace_file_path)
 	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
 	try:
 		yield json_data
@@ -47,37 +55,42 @@ def mutate_dot_as_json(infile: str, write_output: bool = True):
 			return
 		# TODO: Can we output it with proper indentation?
 		graph_out = json_graph.node_link_graph(json_data, edges="edges")
-		nx.nx_pydot.write_dot(graph_out, infile)
+		nx.nx_pydot.write_dot(graph_out, workspace_file_path)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root(
-	infile: str,
+	sessionid: str | None = None,
 	sel_node: Annotated[list[str] | None, Query()] = None,
 ):
-	with mutate_dot_as_json(infile, write_output=False) as json_data:
+	if sessionid is None:
+		return "Provide sessionid"
+
+	with mutate_dot_as_json(sessionid, write_output=False) as json_data:
 		sel_node_set = set(sel_node if sel_node is not None else [])
 		selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
 
 		for n in json_data["nodes"]:
-			n["URL"] = f"{API_URL}/selectnode?infile={infile}{selected_nodes_args}&id={n["id"]}"
+			n["URL"] = f"{API_URL}/selectnode?sessionid={sessionid}{selected_nodes_args}&id={n["id"]}"
 			if n["id"] in sel_node_set:
 				n["color"] = "red"
 		for e in json_data["edges"]:
-			e["URL"] = f"{API_URL}/selectedge?infile={infile}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
+			e["URL"] = f"{API_URL}/selectedge?sessionid={sessionid}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
 
 		graph_out = json_graph.node_link_graph(json_data, edges="edges")
 		pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
-		pydot_graph.write_svg("graphout.svg")
-		pydot_graph.write_cmapx("graphout.cmapx")
-		with open("graphout.cmapx", 'r') as file:
+
+		session_path = f"{API_WORK_DIR}/{sessionid}"
+		pydot_graph.write_svg(f"{API_WORK_DIR}/imgs/{sessionid}.svg")
+		pydot_graph.write_cmapx(f"{session_path}/graphout.cmapx")
+		with open(f"{session_path}/graphout.cmapx", 'r') as file:
 			cmapx_content = file.read()
 
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
 	<form action="/deletenode" method="post">
 		<strong>Delete Node</strong><br>
 		<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
-		<input type="hidden" name="infile" value="{infile}" />
+		<input type="hidden" name="sessionid" value="{sessionid}" />
 		<input type="submit" value="Submit">
 	</form>
 	"""
@@ -97,7 +110,7 @@ async def root(
 			<label for="new_id">Id:</label>
 			<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
 			<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
-			<input type="hidden" name="infile" value="{infile}"/>
+			<input type="hidden" name="sessionid" value="{sessionid}"/>
 			<input type="submit" value="Submit">
 		</form>
 		"""
@@ -106,7 +119,7 @@ async def root(
 	<html>
 		<body>
 			<div style="float: left; width: 50%">
-				<img src="imgs/graphout.svg" usemap="#G" alt="graph" />
+				<img src="imgs/{sessionid}.svg" usemap="#G" alt="graph" />
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
@@ -114,7 +127,7 @@ async def root(
 					<strong>Add Node</strong><br>
 					<label for="id">Id:</label>
 					<input type="text" id="id" name="id" style="width: 75px" value=""><br>
-					<input type="hidden" name="infile" value="{infile}" />
+					<input type="hidden" name="sessionid" value="{sessionid}" />
 					<input type="submit" value="Submit">
 				</form>
 				{delete_html_form}
@@ -127,7 +140,7 @@ async def root(
 
 @app.get("/selectnode/")
 async def select_node(
-	infile: str,
+	sessionid: str,
 	id: str,
 	sel_node: Annotated[list[str] | None, Query()] = None,
 ):
@@ -138,7 +151,7 @@ async def select_node(
 	elif len(sel_node_set) == 0:
 		sel_node_set.add(id)
 	else:
-		with mutate_dot_as_json(infile) as json_data:
+		with mutate_dot_as_json(sessionid) as json_data:
 			json_data["edges"] = [
 				dict([(k,v) for k,v in e.items() if k != "key"])
 				for e in json_data["edges"]
@@ -150,41 +163,41 @@ async def select_node(
 		sel_node_set.clear()
 
 	selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
-	return RedirectResponse(f"{API_URL}/?infile={infile}{selected_nodes_args}")
+	return RedirectResponse(f"{API_URL}/?sessionid={sessionid}{selected_nodes_args}")
 
 
 @app.get("/selectedge/")
 async def select_edge(
-	infile: str,
+	sessionid: str,
 	source: str,
 	target: str,
 ):
-	with mutate_dot_as_json(infile) as json_data:
+	with mutate_dot_as_json(sessionid) as json_data:
 		json_data["edges"] = [
 			e for e in json_data["edges"]
 			if not (e["source"] == source and e["target"] == target)
 		]
-	return RedirectResponse(f"{API_URL}/?infile={infile}")
+	return RedirectResponse(f"{API_URL}/?sessionid={sessionid}")
 
 
 @app.post("/addnode/")
 async def add_node(
-	infile: Annotated[str, Form()],
+	sessionid: Annotated[str, Form()],
 	id: Annotated[str, Form()],
 ):
-	with mutate_dot_as_json(infile) as json_data:
+	with mutate_dot_as_json(sessionid) as json_data:
 		json_data["nodes"].append({
 			"id": id,
 		})
-	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
+	return RedirectResponse(f"{API_URL}/?sessionid={sessionid}", status_code=303)
 
 
 @app.post("/deletenode/")
 async def delete_node(
-	infile: Annotated[str, Form()],
+	sessionid: Annotated[str, Form()],
 	id: Annotated[str, Form()],
 ):
-	with mutate_dot_as_json(infile) as json_data:
+	with mutate_dot_as_json(sessionid) as json_data:
 		json_data["nodes"] = [
 			n for n in json_data["nodes"]
 			if n["id"] != id
@@ -193,18 +206,18 @@ async def delete_node(
 			e for e in json_data["edges"]
 			if id not in [e["source"], e["target"]]
 		]
-	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
+	return RedirectResponse(f"{API_URL}/?sessionid={sessionid}", status_code=303)
 
 
 @app.post("/editnode/")
 async def edit_node(
-	infile: Annotated[str, Form()],
+	sessionid: Annotated[str, Form()],
 	id: Annotated[str, Form()],
 	new_id: Annotated[str, Form()],
 	edit_node_data: Annotated[str, Form()],
 ):
 	edit_node_data_json = json.loads(edit_node_data)
-	with mutate_dot_as_json(infile) as json_data:
+	with mutate_dot_as_json(sessionid) as json_data:
 		for n in json_data["nodes"]:
 			if n["id"] == id:
 				n.clear()
@@ -216,32 +229,35 @@ async def edit_node(
 				e["source"] = new_id
 			if e["target"] == id:
 				e["target"] = new_id
-	return RedirectResponse(f"{API_URL}/?infile={infile}", status_code=303)
+	return RedirectResponse(f"{API_URL}/?sessionid={sessionid}", status_code=303)
 
 
-# TODO: Don't require file just to run or request the api
-
-def api_is_running(dot_file: str) -> bool:
-	req =  request.Request(f"{API_URL}/?infile={dot_file}")
+def api_is_running() -> bool:
 	try:
-		request.urlopen(req, timeout=0.5)
+		request.urlopen(
+			request.Request(f"{API_URL}"),
+			timeout=0.5,
+		)
 	except Exception:
 		return False
 	return True
 
 
-def ensure_api_is_running(args):
-	if api_is_running(args.file):
+def ensure_api_is_running(args) -> None:
+	if api_is_running():
 		print(f"API is already running at {API_URL}.")
 		return
 	uvicorn.run("main:app", host="0.0.0.0", port=API_PORT, reload=args.reload)
 
 
-def open_app_in_browser(args):
-	# Poll the api to make sure it exists, before opening browser.
-	while not api_is_running(args.file):
-		time.sleep(0.1)
-	webbrowser.open(f"{API_URL}/?infile={args.file}")
+def launch_editor(args) -> None:
+	sessionid = uuid4()
+	session_path = f"{API_WORK_DIR}/{sessionid}"
+	if not os.path.exists(session_path):
+		os.makedirs(session_path)
+	infile_abspath = os.path.abspath(args.file)
+	os.symlink(infile_abspath, f"{session_path}/filelink.dot")
+	webbrowser.open(f"{API_URL}/?sessionid={sessionid}")
 
 
 if __name__ == "__main__":
@@ -254,7 +270,6 @@ if __name__ == "__main__":
 		help='run the API'
 	)
 	parser_api.add_argument("--reload", action='store_true')
-	parser_api.add_argument("--file", "-f", type=str, required=True)
 	parser_api.set_defaults(func=ensure_api_is_running)
 
 	parser_editor = sub_parsers.add_parser(
@@ -262,7 +277,7 @@ if __name__ == "__main__":
 		help='connect to the API and run the editor in a browser',
 	)
 	parser_editor.add_argument("--file", "-f", type=str, required=True)
-	parser_editor.set_defaults(func=open_app_in_browser)
+	parser_editor.set_defaults(func=launch_editor)
 
 	args = arg_parser.parse_args()
 
