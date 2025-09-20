@@ -257,7 +257,12 @@ def launch_editor(args) -> None:
 		os.makedirs(session_path)
 	infile_abspath = os.path.abspath(args.file)
 	os.symlink(infile_abspath, f"{session_path}/filelink.dot")
-	webbrowser.open(f"{API_URL}/?sessionid={sessionid}")
+
+	session_url = f"{API_URL}/?sessionid={sessionid}"
+	if args.browser is None:
+		webbrowser.open(session_url)
+	else:
+		webbrowser.get(args.browser).open(session_url)
 
 
 if __name__ == "__main__":
@@ -277,6 +282,7 @@ if __name__ == "__main__":
 		help='connect to the API and run the editor in a browser',
 	)
 	parser_editor.add_argument("--file", "-f", type=str, required=True)
+	parser_editor.add_argument("--browser", "-b", type=str, required=False)
 	parser_editor.set_defaults(func=launch_editor)
 
 	args = arg_parser.parse_args()
