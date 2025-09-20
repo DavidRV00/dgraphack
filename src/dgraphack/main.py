@@ -267,6 +267,7 @@ if __name__ == "__main__":
 	arg_parser = argparse.ArgumentParser(exit_on_error=True)
 	sub_parsers = arg_parser.add_subparsers(required=True)
 
+	# API
 	parser_api = sub_parsers.add_parser(
 		'api',
 		help='run the API',
@@ -274,6 +275,7 @@ if __name__ == "__main__":
 	parser_api.add_argument("--reload", action='store_true')
 	parser_api.set_defaults(func=ensure_api_is_running)
 
+	# Edit
 	parser_edit = sub_parsers.add_parser(
 		'edit',
 		help='connect to the API and run the editor in a browser',
