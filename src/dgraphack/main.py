@@ -48,7 +48,7 @@ def launch_editor(args) -> None:
 		webbrowser.get(args.browser).open(session_url)
 
 
-if __name__ == "__main__":
+def main() -> None:
 	import argparse
 	arg_parser = argparse.ArgumentParser(exit_on_error=True)
 	sub_parsers = arg_parser.add_subparsers(required=True)
@@ -74,4 +74,8 @@ if __name__ == "__main__":
 
 	# Delegate execution to subcommand.
 	args.func(args)
+
+
+if __name__ == "__main__":
+    main()
 

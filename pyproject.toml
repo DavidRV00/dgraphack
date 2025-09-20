@@ -5,15 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dgraphack"
 version = "0.0.1"
+authors = [
+	{name = "David Vaughan", email = "david@davidv.xyz"},
+]
+description = "Simple graphical editor for Graphviz DOT files"
+readme = "README.md"
+license = "MIT"
 dependencies = [
 	"fastapi[standard]",
 	"uvicorn",
 	"pydot",
 	"networkx",
-]
-
-authors = [
-	{name = "David Vaughan", email = "david@davidv.xyz"},
 ]
 
 [tool.optional-dependencies]
@@ -27,3 +29,5 @@ dev = []
 [tool.setuptools.package-dir]
 "dgraphack" = "src/dgraphack"
 
+[project.scripts]
+dgraphack = "dgraphack.main:main"
