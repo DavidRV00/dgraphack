@@ -10,7 +10,7 @@ In particular, the non-linear nature of graphs makes it unnatural to textually p
 
 Additionally, it can just be tiring and frictionful to have to look back and forth between a graph rendering and a text editor when making changes, rather than just looking directly at the thing you want to change.
 
-<img src="demo.gif" alt="usage demo" width="50%" />
+<img src="demo.gif" alt="usage demo" width="80%" />
 
 This tool is in early development, so it's probably buggy, missing important features, and lacking in UX friendliness. All comments, criticisms, suggestions, issues, and pull requests are welcome.
 
