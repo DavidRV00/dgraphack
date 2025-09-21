@@ -6,12 +6,11 @@ from uuid import uuid4
 
 import uvicorn
 
-from dgraphack.consts import API_PORT, API_URL, API_WORK_DIR
+from dgraphack.consts import API_HOST, API_PORT, API_URL, API_WORK_DIR
 
 
 def ensure_api_is_running(args) -> None:
-	# TODO: Refactor hard-coded host out
-	uvicorn.run("dgraphack.api:app", host="0.0.0.0", port=API_PORT, reload=args.reload)
+	uvicorn.run("dgraphack.api:app", host=API_HOST, port=API_PORT, reload=args.reload)
 
 
 def launch_editor(args) -> None:
