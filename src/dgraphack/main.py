@@ -9,7 +9,7 @@ import uvicorn
 from dgraphack.consts import API_HOST, API_PORT, API_URL, API_WORK_DIR
 
 
-def ensure_api_is_running(args) -> None:
+def run_api(args) -> None:
 	uvicorn.run("dgraphack.api:app", host=API_HOST, port=API_PORT, reload=args.reload)
 
 
@@ -42,7 +42,7 @@ def main() -> None:
 		help='run the API',
 	)
 	parser_api.add_argument("--reload", action='store_true')
-	parser_api.set_defaults(func=ensure_api_is_running)
+	parser_api.set_defaults(func=run_api)
 
 	# Edit
 	parser_edit = sub_parsers.add_parser(
