@@ -2,7 +2,6 @@
 
 import os
 import webbrowser
-from urllib import request
 from uuid import uuid4
 
 import uvicorn
@@ -10,22 +9,7 @@ import uvicorn
 from dgraphack.consts import API_PORT, API_URL, API_WORK_DIR
 
 
-def api_is_running() -> bool:
-	try:
-		request.urlopen(
-			request.Request(f"{API_URL}"),
-			timeout=0.5,
-		)
-	except Exception:
-		return False
-	return True
-
-
 def ensure_api_is_running(args) -> None:
-	# TODO: Do we even need this anymore?
-	if api_is_running():
-		print(f"API is already running at {API_URL}.")
-		return
 	# TODO: Refactor hard-coded host out
 	uvicorn.run("dgraphack.api:app", host="0.0.0.0", port=API_PORT, reload=args.reload)
 
