@@ -29,15 +29,16 @@ def mutate_dot_as_json(sessionid: str, write_output: bool = True):
 	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
 	dot_graph_in = nx.nx_pydot.read_dot(workspace_file_path)
 	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
-	try:
-		yield json_data
-	finally:
-		if not write_output:
-			return
-		# TODO: Can we output it with proper indentation?
-		# TODO: Should we always be writing back out here?
-		graph_out = json_graph.node_link_graph(json_data, edges="edges")
-		nx.nx_pydot.write_dot(graph_out, workspace_file_path)
+
+	# Let the caller have the JSON data to mutate it.
+	yield json_data
+
+	# Now that we're back, reconvert the JSON back to a graph, and write it out.
+	if not write_output:
+		return
+	# TODO: Can we output it with proper indentation?
+	graph_out = json_graph.node_link_graph(json_data, edges="edges")
+	nx.nx_pydot.write_dot(graph_out, workspace_file_path)
 
 
 @app.get("/", response_class=HTMLResponse)
