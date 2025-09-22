@@ -1,16 +1,16 @@
 import json
 import os
+from contextlib import contextmanager
 from functools import partial
 from typing import Annotated
 
-from contextlib import contextmanager
 import networkx as nx
 from fastapi import FastAPI, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
-from dgraphack.consts import API_URL, API_WORK_DIR, API_IMG_DIR
+from dgraphack.consts import API_IMG_DIR, API_URL, API_WORK_DIR
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
@@ -50,6 +50,7 @@ async def root(
 		return "Provide sessionid"
 
 	with mutate_dot_as_json(sessionid, write_output=False) as json_data:
+		graph_name = json_data["graph"]["name"]
 		sel_node_set = set(sel_node if sel_node is not None else [])
 		selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
 
@@ -105,7 +106,7 @@ async def root(
 	<html>
 		<body>
 			<div style="float: left; width: 50%">
-				<img src="imgs/{sessionid}.svg" usemap="#G" alt="graph" />
+				<img src="imgs/{sessionid}.svg" usemap="#{graph_name}" alt="graph {graph_name}" />
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
