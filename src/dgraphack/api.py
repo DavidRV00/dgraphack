@@ -101,6 +101,7 @@ async def root(
 		"""
 
 	return f"""
+	<!DOCTYPE html>
 	<html>
 		<body>
 			<div style="float: left; width: 50%">
