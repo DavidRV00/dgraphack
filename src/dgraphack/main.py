@@ -14,6 +14,11 @@ def run_api(args) -> None:
 
 
 def launch_editor(args) -> None:
+	# If the file doesn't exist, create it.
+	if not os.path.isfile(args.file):
+		with open(args.file, 'w') as f:
+			f.write("graph G {\n}\n")
+
 	# Create a directory for our session, and link our local file there.
 	sessionid = str(uuid4())
 	session_path = os.path.join(API_WORK_DIR, sessionid)
