@@ -25,20 +25,23 @@ global_img_store: dict[str, bytes] = dict()
 print = partial(print, flush=True)
 
 
-@contextmanager
-def mutate_dot_as_json(sessionid: str, write_output: bool = True):
+def get_dot_as_json(sessionid: str):
 	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
 	dot_graph_in = nx.nx_pydot.read_dot(workspace_file_path)
-	json_data = json_graph.node_link_data(dot_graph_in, edges="edges")
+	return json_graph.node_link_data(dot_graph_in, edges="edges")
+
+
+@contextmanager
+def mutate_dot_as_json(sessionid: str):
+	json_data = get_dot_as_json(sessionid)
 
 	# Let the caller have the JSON data to mutate it.
 	yield json_data
 
 	# Now that we're back, reconvert the JSON back to a graph, and write it out.
-	if not write_output:
-		return
 	graph_out = json_graph.node_link_graph(json_data, edges="edges")
 	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
 	with open(workspace_file_path, "w") as dot_out_file:
 		dot_out_file.write(
 			pydot_graph.to_string(indent="    "),
@@ -51,25 +54,26 @@ async def root(
 	sel_node: Annotated[list[str] | None, Query()] = None,
 ):
 	if sessionid is None:
-		return "Provide sessionid"
+		return "Provide sessionid (just run `dgraphack edit <file>`)"
 
-	with mutate_dot_as_json(sessionid, write_output=False) as json_data:
-		graph_name = json_data["graph"]["name"]
-		sel_node_set = set(sel_node if sel_node is not None else [])
-		selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
+	json_data = get_dot_as_json(sessionid)
 
-		for n in json_data["nodes"]:
-			n["URL"] = f"{API_URL}/selectnode?sessionid={sessionid}{selected_nodes_args}&id={n["id"]}"
-			if n["id"] in sel_node_set:
-				n["color"] = "red"
-		for e in json_data["edges"]:
-			e["URL"] = f"{API_URL}/selectedge?sessionid={sessionid}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
+	graph_name = json_data["graph"]["name"]
+	sel_node_set = set(sel_node if sel_node is not None else [])
+	selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
 
-		graph_out = json_graph.node_link_graph(json_data, edges="edges")
-		pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+	for n in json_data["nodes"]:
+		n["URL"] = f"{API_URL}/selectnode?sessionid={sessionid}{selected_nodes_args}&id={n["id"]}"
+		if n["id"] in sel_node_set:
+			n["color"] = "red"
+	for e in json_data["edges"]:
+		e["URL"] = f"{API_URL}/selectedge?sessionid={sessionid}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
 
-		global_img_store[sessionid] = pydot_graph.create_svg()
-		cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
+	graph_out = json_graph.node_link_graph(json_data, edges="edges")
+	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+
+	global_img_store[sessionid] = pydot_graph.create_svg()
+	cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
 
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
 	<form action="/deletenode" method="post">
