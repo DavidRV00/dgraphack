@@ -1,3 +1,4 @@
+import io
 import json
 import os
 from contextlib import contextmanager
@@ -6,20 +7,20 @@ from typing import Annotated
 
 import networkx as nx
 from fastapi import FastAPI, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
-from dgraphack.consts import API_IMG_DIR, API_URL, API_WORK_DIR
+from dgraphack.consts import API_URL, API_WORK_DIR
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
 
-for path in [API_WORK_DIR, API_IMG_DIR]:
+for path in [API_WORK_DIR]:
 	os.makedirs(path, exist_ok=True)
 
 app = FastAPI()
-app.mount("/imgs", StaticFiles(directory=API_IMG_DIR))
+global_img_store: dict[str, bytes] = dict()
 
 print = partial(print, flush=True)
 
@@ -64,13 +65,8 @@ async def root(
 		graph_out = json_graph.node_link_graph(json_data, edges="edges")
 		pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
 
-		session_path = os.path.join(API_WORK_DIR, sessionid)
-		pydot_graph.write_svg(os.path.join(API_WORK_DIR, "imgs", f"{sessionid}.svg"))
-
-		cmapx_path = os.path.join(session_path, "graphout.cmapx")
-		pydot_graph.write_cmapx(cmapx_path)
-		with open(cmapx_path, 'r') as file:
-			cmapx_content = file.read()
+		global_img_store[sessionid] = pydot_graph.create_svg()
+		cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
 
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
 	<form action="/deletenode" method="post">
@@ -106,7 +102,7 @@ async def root(
 	<html>
 		<body>
 			<div style="float: left; width: 50%">
-				<img src="imgs/{sessionid}.svg" usemap="#{graph_name}" alt="graph {graph_name}" />
+				<img src="imgs/{sessionid}" usemap="#{graph_name}" alt="graph {graph_name}" />
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
@@ -123,6 +119,20 @@ async def root(
 		</body>
 	</html>
 	"""
+
+
+@app.get(
+	"/imgs/{sessionid}",
+	response_class=StreamingResponse,
+	responses= {200: {"content": {"image/svg+xml": {}}}},
+)
+async def get_img(
+	sessionid: str,
+):
+	return StreamingResponse(
+		content=io.BytesIO(global_img_store[sessionid]),
+		media_type="image/svg+xml",
+	)
 
 
 @app.get("/selectnode/")
