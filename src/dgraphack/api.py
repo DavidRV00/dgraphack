@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 from dgraphack.consts import API_URL, API_WORK_DIR
-from dgraphack.util import get_dot_as_json, mutate_dot_as_json
+from dgraphack.util import get_dot_as_json, mutate_dot_as_json, get_pruned_json_node_data
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
@@ -52,6 +52,16 @@ async def root(
 	global_img_store[sessionid] = pydot_graph.create_svg()
 	cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
 
+	add_html_form = f"""
+	<form action="/addnode" method="post">
+		<strong>Add Node</strong><br>
+		<label for="id">Id:</label>
+		<input type="text" id="id" name="id" style="width: 75px" value=""><br>
+		<input type="hidden" name="sessionid" value="{sessionid}" />
+		<input type="submit" value="Submit">
+	</form>
+	"""
+
 	delete_html_form = "" if len(sel_node_set) == 0 else f"""
 	<form action="/deletenode" method="post">
 		<strong>Delete Node</strong><br>
@@ -61,25 +71,18 @@ async def root(
 	</form>
 	"""
 
-	edit_html_form = ""
-	if len(sel_node_set) != 0:
-		node_data = [n for n in json_data["nodes"] if n["id"] == list(sel_node_set)[0]][0]
-		node_data_pruned_json = json.dumps(
-			{k:v for k,v in node_data.items() if k not in ["id", "URL", "color"]},
-			indent=4
-		)
-		edit_html_form = f"""
-		<form action="/editnode" method="post" id="editnodeform">
-			<strong>Edit Node</strong><br>
-			<label for="edit_node_data">Node Data (json):</label><br>
-			<textarea name="edit_node_data" cols="25" rows="3" form="editnodeform">{node_data_pruned_json}</textarea><br>
-			<label for="new_id">Id:</label>
-			<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
-			<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
-			<input type="hidden" name="sessionid" value="{sessionid}"/>
-			<input type="submit" value="Submit">
-		</form>
-		"""
+	edit_html_form = "" if len(sel_node_set) == 0 else f"""
+	<form action="/editnode" method="post" id="editnodeform">
+		<strong>Edit Node</strong><br>
+		<label for="edit_node_data">Node Data (json):</label><br>
+		<textarea name="edit_node_data" cols="25" rows="3" form="editnodeform">{get_pruned_json_node_data(json_data, list(sel_node_set)[0])}</textarea><br>
+		<label for="new_id">Id:</label>
+		<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
+		<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
+		<input type="hidden" name="sessionid" value="{sessionid}"/>
+		<input type="submit" value="Submit">
+	</form>
+	"""
 
 	return f"""
 	<!DOCTYPE html>
@@ -98,15 +101,9 @@ async def root(
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
-				<form action="/addnode" method="post">
-					<strong>Add Node</strong><br>
-					<label for="id">Id:</label>
-					<input type="text" id="id" name="id" style="width: 75px" value=""><br>
-					<input type="hidden" name="sessionid" value="{sessionid}" />
-					<input type="submit" value="Submit">
-				</form>
-				{delete_html_form}
-				{edit_html_form}
+				{add_html_form}<br>
+				{delete_html_form}<br>
+				{edit_html_form}<br>
 			</div>
 		</body>
 	</html>

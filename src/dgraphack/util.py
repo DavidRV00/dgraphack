@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import contextmanager
 
@@ -32,4 +33,12 @@ def mutate_dot_as_json(sessionid: str):
 		dot_out_file.write(
 			pydot_graph.to_string(indent="    "),
 		)
+
+
+def get_pruned_json_node_data(json_data: dict, node_id: str):
+	node_data = [n for n in json_data["nodes"] if n["id"] == node_id][0]
+	return json.dumps(
+		{k:v for k,v in node_data.items() if k not in ["id", "URL", "color"]},
+		indent=4
+	)
 
