@@ -37,9 +37,12 @@ def mutate_dot_as_json(sessionid: str, write_output: bool = True):
 	# Now that we're back, reconvert the JSON back to a graph, and write it out.
 	if not write_output:
 		return
-	# TODO: Can we output it with proper indentation?
 	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	nx.nx_pydot.write_dot(graph_out, workspace_file_path)
+	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+	with open(workspace_file_path, "w") as dot_out_file:
+		dot_out_file.write(
+			pydot_graph.to_string(indent="    "),
+		)
 
 
 @app.get("/", response_class=HTMLResponse)
