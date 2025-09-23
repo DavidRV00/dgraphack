@@ -48,9 +48,10 @@ async def root(
 
 	graph_out = json_graph.node_link_graph(json_data, edges="edges")
 	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
-
-	global_img_store[sessionid] = pydot_graph.create_svg()
 	cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
+
+	# Cache the image so it can be retrieved by the /imgs endpoint.
+	global_img_store[sessionid] = pydot_graph.create_svg()
 
 	add_html_form = f"""
 	<form action="/addnode" method="post">
@@ -75,7 +76,9 @@ async def root(
 	<form action="/editnode" method="post" id="editnodeform">
 		<strong>Edit Node</strong><br>
 		<label for="edit_node_data">Node Data (json):</label><br>
-		<textarea name="edit_node_data" cols="25" rows="3" form="editnodeform">{get_pruned_json_node_data(json_data, list(sel_node_set)[0])}</textarea><br>
+		<textarea name="edit_node_data" cols="25" rows="3" form="editnodeform">""" + \
+			get_pruned_json_node_data(json_data, list(sel_node_set)[0]) + \
+		f"""</textarea><br>
 		<label for="new_id">Id:</label>
 		<input type="text" id="new_id" name="new_id" style="width: 75px" value="{list(sel_node_set)[0]}"><br>
 		<input type="hidden" name="id" value="{list(sel_node_set)[0]}">
