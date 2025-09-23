@@ -84,9 +84,17 @@ async def root(
 	return f"""
 	<!DOCTYPE html>
 	<html>
+		<head>
+			<style>
+				.graphimg {{
+					display: block;
+					margin-left: auto;
+				}}
+			</style>
+		</head>
 		<body>
 			<div style="float: left; width: 50%">
-				<img src="imgs/{sessionid}" usemap="#{graph_name}" alt="graph {graph_name}" />
+				<img src="imgs/{sessionid}" usemap="#{graph_name}" alt="graph {graph_name}" class="graphimg"/>
 				{cmapx_content}
 			</div>
 			<div style="float: right; width: 22%">
