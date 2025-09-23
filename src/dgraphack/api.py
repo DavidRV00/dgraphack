@@ -1,7 +1,6 @@
 import io
 import json
 import os
-from contextlib import contextmanager
 from functools import partial
 from typing import Annotated
 
@@ -12,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 from dgraphack.consts import API_URL, API_WORK_DIR
+from dgraphack.util import get_dot_as_json, mutate_dot_as_json
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
@@ -23,29 +23,6 @@ app = FastAPI()
 global_img_store: dict[str, bytes] = dict()
 
 print = partial(print, flush=True)
-
-
-def get_dot_as_json(sessionid: str):
-	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
-	dot_graph_in = nx.nx_pydot.read_dot(workspace_file_path)
-	return json_graph.node_link_data(dot_graph_in, edges="edges")
-
-
-@contextmanager
-def mutate_dot_as_json(sessionid: str):
-	json_data = get_dot_as_json(sessionid)
-
-	# Let the caller have the JSON data to mutate it.
-	yield json_data
-
-	# Now that we're back, reconvert the JSON back to a graph, and write it out.
-	graph_out = json_graph.node_link_graph(json_data, edges="edges")
-	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
-	workspace_file_path = os.path.join(API_WORK_DIR, sessionid, "filelink.dot")
-	with open(workspace_file_path, "w") as dot_out_file:
-		dot_out_file.write(
-			pydot_graph.to_string(indent="    "),
-		)
 
 
 @app.get("/", response_class=HTMLResponse)
