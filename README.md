@@ -4,7 +4,7 @@ This is my simple graphical editor for Graphviz DOT files.
 
 It allows you to edit a graph on the rendering exactly as produced by the `dot` tool, and have those changes immediately reflected in the corresponding DOT text file.
 
-<img src="demo.gif" alt="usage demo" width="100%" />
+<img src="assets/demo.gif" alt="usage demo" width="100%" />
 
 Why a graphical editor for DOT files? Because graphs are cool, and DOT files are cool, but it *can be* pretty annoying to edit them with a text editor.
 
