@@ -4,13 +4,13 @@ This is my simple graphical editor for Graphviz DOT files.
 
 It allows you to edit a graph on the rendering exactly as produced by the `dot` tool, and have those changes immediately reflected in the corresponding DOT text file.
 
+<img src="demo.gif" alt="usage demo" width="100%" />
+
 Why a graphical editor for DOT files? Because graphs are cool, and DOT files are cool, but it *can be* pretty annoying to edit them with a text editor.
 
 In particular, the non-linear nature of graphs makes it unnatural to textually perform common operations like renaming or deleting nodes with multiple edges attached to them (if there are E edges attached to a node, and you want to rename or delete that node, you have to change E extra lines in a text editor, but in a graphical editor you can just take one action). 
 
 Additionally, it can just be tiring and frictionful to have to look back and forth between a graph rendering and a text editor when making changes, rather than just looking directly at the thing you want to change.
-
-<img src="demo.gif" alt="usage demo" width="80%" />
 
 This tool is in early development, so it's probably buggy, missing important features, and lacking in UX friendliness. All comments, criticisms, suggestions, issues, and pull requests are welcome.
 
