@@ -52,7 +52,7 @@ The tool runs as a webapp. First launch the API:
 dgraphack api
 ```
 
-To avoid doing this manually every time, you can launch this in a startup script (such as ~/.xinitrc on an X11 system), with a line such as `exec dgraphack api &`.
+To avoid doing this manually every time, you can launch the api in a startup script (such as the .xinitrc file on an X11 system).
 
 Once the API is running, just launch the editor and give it a graph file:
 ```
