@@ -37,7 +37,7 @@ async def root(
 
 	graph_name = json_data["graph"]["name"] \
 		if "name" in json_data["graph"] \
-		else "%1" # pydat automatically gives this as the name and id for the graph in the cmapx.
+		else "%1" # pydot automatically gives this as the name and id for the graph in the cmapx.
 
 	sel_node_set = set(sel_node if sel_node is not None else [])
 	selected_nodes_args = "".join([f"&sel_node={id}" for id in sel_node_set])
