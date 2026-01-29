@@ -37,7 +37,7 @@ The executable will now be located at `venv/bin/dgraphack`.
 
 To make it easier to launch the program without having to activate the env every time, you can create a script similar to below, and place it somewhere on your PATH (for example /usr/local/bin or similar):
 ```
-#!/bin/sh
+#!/usr/bin/env sh
 /path/to/venv/bin/dgraphack $@
 ```
 
