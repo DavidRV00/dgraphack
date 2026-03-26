@@ -12,6 +12,8 @@ In particular, the non-linear nature of graphs makes it unnatural to textually p
 
 Additionally, it can just be tiring and frictionful to have to look back and forth between a graph rendering and a text editor when making changes, rather than just looking directly at the thing you want to change.
 
+## ! Warning: This tool is in early development !
+
 This tool is in early development, so it's probably buggy, missing important features, and lacking in UX friendliness. All comments, criticisms, suggestions, issues, and pull requests are welcome.
 
 So far, the tool has only been verified to work well for fairly simple graphs. If your DOT file is important, you may want to make sure it is backed up or version-controlled before going crazy with this editor.
