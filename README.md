@@ -18,6 +18,10 @@ So far, the tool has only been verified to work well for fairly simple graphs. I
 
 Right now, the biggest problem with the tool, in my opinion, is that it relies on a hack based around graphviz's HTML cmapx renderings, which is why it has to be a web app for now. My biggest goal is to eventually drop this implementation and have the tool run as a normal native UI application.
 
+## Dependencies
+
+Install `graphviz` on your system, ideally using your package manager. Dgraphack uses `pydot` behind the scenes, which relies on `graphviz` being availabe.
+
 ## Installation
 
 Currently the best way to install the application is by using pip and a virtual environment.
