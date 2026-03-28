@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from contextlib import contextmanager
 
@@ -41,4 +42,8 @@ def get_pruned_json_node_data(json_data: dict, node_id: str):
 		{k:v for k,v in node_data.items() if k not in ["id", "URL", "color"]},
 		indent=4
 	)
+
+
+def get_log_level(verbose: bool) -> int:
+	return logging.INFO if not verbose else logging.DEBUG
 

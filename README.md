@@ -22,7 +22,7 @@ Right now, the biggest problem with the tool, in my opinion, is that it relies o
 
 ## Dependencies
 
-Install `graphviz` on your system, ideally using your package manager. Dgraphack uses `pydot` behind the scenes, which relies on `graphviz` being availabe.
+Install `graphviz` on your system, ideally using your package manager. Dgraphack uses `pydot` behind the scenes, which relies on `graphviz` being available.
 
 ## Installation
 

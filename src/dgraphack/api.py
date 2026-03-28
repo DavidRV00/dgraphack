@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 from functools import partial
 from typing import Annotated
@@ -11,18 +12,20 @@ from fastapi.staticfiles import StaticFiles
 from networkx.readwrite import json_graph
 
 from dgraphack.consts import API_URL, API_WORK_DIR
-from dgraphack.util import get_dot_as_json, mutate_dot_as_json, get_pruned_json_node_data
+from dgraphack.util import (get_dot_as_json, get_pruned_json_node_data,
+                            mutate_dot_as_json)
+
+logger = logging.getLogger(__name__)
 
 # Monkey-patch StaticFiles so it never caches the images, because they change quickly.
 StaticFiles.is_not_modified = lambda self, *args, **kwargs: False
 
 for path in [API_WORK_DIR]:
 	os.makedirs(path, exist_ok=True)
+logger.debug(f"{API_WORK_DIR=}; exists?: {os.path.isdir(API_WORK_DIR)}\n")
 
 app = FastAPI()
 global_img_store: dict[str, bytes] = dict()
-
-print = partial(print, flush=True)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -34,6 +37,7 @@ async def root(
 		return "Provide sessionid (just run `dgraphack edit <file>`)"
 
 	json_data = get_dot_as_json(sessionid)
+	logger.debug(f"{json_data=}\n")
 
 	graph_name = json_data["graph"]["name"] \
 		if "name" in json_data["graph"] \
@@ -50,11 +54,17 @@ async def root(
 		e["URL"] = f"{API_URL}/selectedge?sessionid={sessionid}{selected_nodes_args}&source={e["source"]}&target={e["target"]}"
 
 	graph_out = json_graph.node_link_graph(json_data, edges="edges")
+	logger.debug(f"networkx {graph_out=}\n")
+
 	pydot_graph = nx.drawing.nx_pydot.to_pydot(graph_out)
+	logger.debug(f"{pydot_graph=}\n")
+
 	cmapx_content = pydot_graph.create_cmapx().decode("utf-8")
+	logger.debug(f"{cmapx_content=}\n")
 
 	# Cache the image so it can be retrieved by the /imgs endpoint.
 	global_img_store[sessionid] = pydot_graph.create_svg()
+	logger.debug(f"generated SVG: {global_img_store[sessionid]}\n")
 
 	add_html_form = f"""
 	<form action="/addnode" method="post">
@@ -124,8 +134,12 @@ async def root(
 async def get_img(
 	sessionid: str,
 ):
+	img = global_img_store[sessionid]
+
+	logger.debug(f"about to stream img: {img}\n")
+
 	return StreamingResponse(
-		content=io.BytesIO(global_img_store[sessionid]),
+		content=io.BytesIO(img),
 		media_type="image/svg+xml",
 	)
 

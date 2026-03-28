@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 
+import logging
 import os
+import sys
 import webbrowser
 from uuid import uuid4
 
 import uvicorn
 
 from dgraphack.consts import API_HOST, API_PORT, API_URL, API_WORK_DIR
+from dgraphack.util import get_log_level
+
+logger = logging.getLogger(__name__)
 
 
 def run_api(args) -> None:
-	uvicorn.run("dgraphack.api:app", host=API_HOST, port=API_PORT, reload=args.reload)
+	uvicorn.run(
+		"dgraphack.api:app",
+		host=API_HOST,
+		port=API_PORT,
+		reload=args.reload,
+		log_level=get_log_level(args.verbose),
+	)
 
 
 def launch_editor(args) -> None:
@@ -23,10 +34,12 @@ def launch_editor(args) -> None:
 	sessionid = str(uuid4())
 	session_path = os.path.join(API_WORK_DIR, sessionid)
 	os.makedirs(session_path)
+	link_path = os.path.join(session_path, "filelink.dot")
 	os.symlink(
 		os.path.abspath(args.file),
-		os.path.join(session_path,"filelink.dot"),
+		link_path,
 	)
+	logger.debug(f"link exists?: {os.path.exists(link_path)}")
 
 	# Launch a web browser ($BROWSER or --browser) to our session in the API.
 	session_url = f"{API_URL}/?sessionid={sessionid}"
@@ -39,6 +52,9 @@ def launch_editor(args) -> None:
 def main() -> None:
 	import argparse
 	arg_parser = argparse.ArgumentParser(exit_on_error=True)
+
+	arg_parser.add_argument('-v', '--verbose', action='store_true')
+
 	sub_parsers = arg_parser.add_subparsers(required=True)
 
 	# API
@@ -59,6 +75,10 @@ def main() -> None:
 	parser_edit.set_defaults(func=launch_editor)
 
 	args = arg_parser.parse_args()
+
+	# Set logging level
+	logging.basicConfig(level=get_log_level(args.verbose))
+	logger.debug(f"python: {sys.version}\n")
 
 	# Delegate execution to subcommand.
 	args.func(args)
