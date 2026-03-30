@@ -63,8 +63,12 @@ async def root(
 	logger.debug(f"{cmapx_content=}\n")
 
 	# Cache the image so it can be retrieved by the /imgs endpoint.
-	global_img_store[sessionid] = pydot_graph.create_svg()
-	logger.debug(f"generated SVG: {global_img_store[sessionid]}\n")
+	# global_img_store[sessionid] = pydot_graph.create_svg()
+	# logger.debug(f"generated SVG: {global_img_store[sessionid]}\n")
+
+	global_img_store[sessionid] = pydot_graph.create_png()
+	# logger.debug(f"generated PNG: {global_img_store[sessionid]}\n")
+	logger.debug(f"generated PNG.\n")
 
 	add_html_form = f"""
 	<form action="/addnode" method="post">
@@ -129,18 +133,20 @@ async def root(
 @app.get(
 	"/imgs/{sessionid}",
 	response_class=StreamingResponse,
-	responses= {200: {"content": {"image/svg+xml": {}}}},
+	# responses= {200: {"content": {"image/svg+xml": {}}}},
+	responses= {200: {"content": {"image/png": {}}}},
 )
 async def get_img(
 	sessionid: str,
 ):
 	img = global_img_store[sessionid]
 
-	logger.debug(f"about to stream img: {img}\n")
+	logger.debug(f"about to stream img.\n")
 
 	return StreamingResponse(
 		content=io.BytesIO(img),
-		media_type="image/svg+xml",
+		# media_type="image/svg+xml",
+		media_type="image/png",
 	)
 
 
